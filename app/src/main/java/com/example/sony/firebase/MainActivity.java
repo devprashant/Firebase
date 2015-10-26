@@ -1,122 +1,41 @@
 package com.example.sony.firebase;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Intent;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.TextView;
+import android.view.View;
 
-import com.firebase.client.AuthData;
-import com.firebase.client.ChildEventListener;
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.ValueEventListener;
-import com.firebase.client.core.SyncTree;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
 
 
 public class MainActivity extends ActionBarActivity {
 
+    private static final String firebaseURL = "https://luminous-inferno-9046.firebaseio.com/";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Firebase.setAndroidContext(this);
-        Firebase myFirebaseRef = new Firebase("https://luminous-inferno-9046.firebaseio.com/");
-        myFirebaseRef.child("message").setValue("Do you have data? You'll love firebase");
-        final TextView txtView = (TextView) findViewById(R.id.txtView);
         setContentView(R.layout.activity_main);
-        myFirebaseRef.child("message")
-                .addValueEventListener(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(DataSnapshot dataSnapshot) {
-                        System.out.println(dataSnapshot.getValue());
-                        //txtView.setText((dataSnapshot.getValue()).toString());
-                    }
-
-                    @Override
-                    public void onCancelled(FirebaseError firebaseError) {
-
-                    }
-                });
-
-        Firebase alanRef = myFirebaseRef.child("users").child("alanisawesome");
-
-        user alan = new user("Alan Turing", 1912);
-        //alanRef.setValue(alan);
-
-        Map<String, Object> nickname = new HashMap<>();
-        nickname.put("nickname", "Alan The Machine");
-        alanRef.updateChildren(nickname, new Firebase.CompletionListener() {
-            @Override
-            public void onComplete(FirebaseError firebaseError, Firebase firebase) {
-                if (firebaseError != null) {
-                    System.out.println("Data could not be saved. " + firebaseError.getMessage());
-                } else {
-                    System.out.println("Data saved successfully.");
-                    //txtView.setText("Data saved");
-                }
-            }
-        });
-
-        //Adding posts
-        Firebase postRef = myFirebaseRef.child("posts");
-        Firebase newPostRef = postRef.push();
-
-        Map<String, String> post1 = new HashMap<>();
-        post1.put("author", "gracehop");
-        post1.put("title", "annoucing COBOL, a New Programming Language");
-        newPostRef.setValue(post1);
-        String postId = newPostRef.getKey();
-            System.out.println("Post ID" + postId);
-        Map<String, String> post2 = new HashMap<>();
-        post2.put("author", "alanisawesome");
-        post2.put("title", "The Turing Machine");
-        postRef.push().setValue(post2);
-
-        //Reading posts
-        postRef.addValueEventListener(new ValueEventListener() {
+        //Firebase code
+        Firebase.setAndroidContext(this);
+        Firebase ref = new Firebase(firebaseURL);
+        Firebase gcmMessage = ref.child("gcm");
+        //setting initial value
+        //gcmMessage.setValue("First one");
+        //setting value change listener
+        gcmMessage.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                System.out.println("There are " + dataSnapshot.getChildrenCount() + " blog posts");
-                for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
-                    BlogPost post = postSnapshot.getValue(BlogPost.class);
-                    System.out.println(post.getAuthor() + " - " + post.getTitle());
-                }
-            }
-
-            @Override
-            public void onCancelled(FirebaseError firebaseError) {
-                System.out.println("The read failed: " + firebaseError.getMessage());
-            }
-        });
-
-        postRef.addChildEventListener(new ChildEventListener() {
-            @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildKey) {
-                BlogPost newPost = dataSnapshot.getValue(BlogPost.class);
-                System.out.println("Author: " + newPost.getAuthor());
-                System.out.println("Title: " + newPost.getTitle());
-            }
-
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildKey) {
-                String title = (String) dataSnapshot.child("title").getValue();
-                System.out.println("The updates post title is: " + title);
-            }
-
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-                String title = (String) dataSnapshot.child("title").getValue();
-                System.out.println("The blog post titled " + title + " has been deleted");
-            }
-
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-
+                System.out.println(dataSnapshot.getValue());
+                createNotification((dataSnapshot.getValue()).toString());
             }
 
             @Override
@@ -125,31 +44,26 @@ public class MainActivity extends ActionBarActivity {
             }
         });
 
-        myFirebaseRef.addAuthStateListener(new Firebase.AuthStateListener() {
-            @Override
-            public void onAuthStateChanged(AuthData authData) {
-                if (authData != null) {
 
-                } else {
 
-                }
-            }
-        });
+    }
 
-        Firebase.AuthResultHandler authResultHandler = new Firebase.AuthResultHandler(){
+    public void createNotification(String message){
+        Intent intent = new Intent(this, NotificationReceiverActivity.class);
+        PendingIntent pIntent = PendingIntent.getActivity(this, (int) System.currentTimeMillis(),intent,0);
 
-            @Override
-            public void onAuthenticated(AuthData authData) {
+        Notification noti = new Notification.Builder(this)
+                .setContentTitle("New message from " + "test@gmail.com")
+                .setContentText(message).setSmallIcon(R.mipmap.ic_launcher)
+                .setContentIntent(pIntent)
+                .addAction(R.mipmap.ic_launcher, "Call", pIntent)
+                .addAction(R.mipmap.ic_launcher, "More", pIntent)
+                .addAction(R.mipmap.ic_launcher, "And more", pIntent).build();
+        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-            }
+        noti.flags |= Notification.FLAG_AUTO_CANCEL;
 
-            @Override
-            public void onAuthenticationError(FirebaseError firebaseError) {
-                        System.out.println("Error occured in auth" + firebaseError);
-            }
-        };
-
-        myFirebaseRef.authWithOAuthToken("google","ekcauwwVcpB57ERCrYo0UFnq", authResultHandler);
+        notificationManager.notify(0, noti);
     }
 
     @Override
